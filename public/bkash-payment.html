@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" style="padding: 0; margin: 0; box-sizing: border-box">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#000000" />
+    <meta http-equiv="cache-control" content="no-cache" />
+    <meta http-equiv="expires" content="0" />
+    <meta http-equiv="pragma" content="no-cache" />
+    <link rel="shortcut icon" type="image/jpg" href="/favicon.png" />
+    <meta
+      name="description"
+      content="Supply Mart BD is the only fully automated online global wholesale marketplace of Bangladesh where you can find more than 1 million global suppliers with more than 95 million products and from where you can easily buy your preferable products at a wholesale price for your business without any VAT, TAX, LC or CUSTOMS hassle. Your product will be sent to your doorstep within a certain time."
+    />
+    <head>
+      <script
+        src="https://code.jquery.com/jquery-3.3.1.min.js"
+        integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+        crossorigin="anonymous"
+      ></script>
+      <!-- <script src="https://scripts.sandbox.bka.sh/versions/1.2.0-beta/checkout/bKash-checkout-sandbox.js"></script> -->
+      <script src="https://scripts.pay.bka.sh/versions/1.2.0-beta/checkout/bKash-checkout.js"></script>
+      <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    </head>
+    <title>Supply Mart ~ Bkash Payment</title>
+    <style>
+      /* body {
+        background-image: url("./desktop.png");
+      }
+      @media (max-width: 572px) {
+        body {
+          background-image: url("./mobile.png");
+        }
+      } */
+    </style>
+  </head>
+  <body
+    style="
+      background-size: cover;
+      background-repeat: no-repeat;
+      height: 100vh;
+      width: 100%;
+      background-position: left top;
+      margin: 0;
+    "
+  >
+    <div
+      style="
+        width: 100%;
+        height: 100vh;
+        backdrop-filter: saturate(180%) blur(8px);
+        background-color: rgba(0, 0, 0, 0.5);
+      "
+    >
+      <button id="bKash_button" style="display: none">Pay With BKash</button>
+      <script>
+        let data = null;
+        function getCookie(name) {
+          let cookie = {};
+          document.cookie.split(';').forEach(function (el) {
+            let [k, v] = el.split('=');
+            cookie[k.trim()] = v;
+          });
+          return cookie[name];
+        }
+        let token = getCookie('site_jwt');
+        try {
+          let key = window.location.search.substring(1);
+          let urlDecoded = atob(key);
+          data = JSON.parse(urlDecoded);
+        } catch (error) {}
+        if (data && token) {
+          console.log(data);
+          var paymentID = '';
+          let url = `https://apiv2.onesalemart.com/`;
+          // let url = `http://192.168.0.129:3031/`;
+          bKash.init({
+            paymentMode: 'checkout', //fixed value ‘checkout’
+            paymentRequest: {
+              amount: data.amount,
+              intent: 'sale',
+            },
+            createRequest: function (request) {
+              axios
+                .post(
+                  url + data.endPoint,
+                  {
+                    payment_method: 'bkash',
+                    orders: data.order_ids,
+                  },
+                  {
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                    },
+                  },
+                )
+                .then((res) => {
+                  console.log(res.data);
+                  if (res.data && res.data.res) {
+                    paymentID = res.data.res.paymentID;
+                    bKash.create().onSuccess(res.data.res);
+                  } else {
+                    bKash.create().onError();
+                  }
+                })
+                .catch((err) => {
+                  console.log(err.response);
+                  bKash.create().onError();
+                });
+            },
+            executeRequestOnAuthorization: function () {
+              axios
+                .post(
+                  `${url}customer/execute-bkash`,
+                  {
+                    paymentId: paymentID,
+                  },
+                  {
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                    },
+                  },
+                )
+                .then((res) => {
+                  let data = res.data;
+                  if (data && data.success) {
+                    let base64data = btoa(
+                      JSON.stringify({ from: 'bkash', id: 0 }),
+                    );
+                    window.location.href =
+                      'https://onesalemart.com' +
+                      '/pay/confirmation/' +
+                      base64data;
+                  } else {
+                    let base64data = btoa(
+                      JSON.stringify({ from: 'bkash', id: 2 }),
+                    );
+                    bKash.execute().onError();
+                    window.location.href =
+                      'https://onesalemart.com' +
+                      '/pay/confirmation/' +
+                      base64data;
+                  }
+                })
+                .catch((err) => {
+                  let base64data = btoa(
+                    JSON.stringify({ from: 'bkash', id: 2 }),
+                  );
+                  bKash.execute().onError();
+                  window.location.href =
+                    'https://onesalemart.com' +
+                    '/pay/confirmation/' +
+                    base64data;
+                });
+            },
+            onClose: function () {
+              window.location.href = 'https://onesalemart.com/account/orders';
+            },
+          });
+          $('#bKash_button').click();
+        }
+      </script>
+    </div>
+  </body>
+</html>
